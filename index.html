@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Find talks, startup events and workshops at UC Berkeley in one list.">
+<title>Tavly</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: a bulletin board turned list. Sticky filter bar, events grouped by day, time on the left like a posted flyer. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --fg: #14213a;
+  --muted: #5d6a82;
+  --line: #dde1ea;
+  --accent: #1b4fd8;
+  --accent-ink: #ffffff;
+  --gold: #f2b01e;
+  --gold-ink: #3a2a00;
+  --food: #1f7a4d;
+  --display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1424; --surface: #161e33; --fg: #eef1f8; --muted: #9aa6c0; --line: #27324f;
+    --accent: #7a9bff; --accent-ink: #0b1226; --gold: #f2b01e; --gold-ink: #2a1e00; --food: #52c98d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1424; --surface: #161e33; --fg: #eef1f8; --muted: #9aa6c0; --line: #27324f;
+  --accent: #7a9bff; --accent-ink: #0b1226; --gold: #f2b01e; --gold-ink: #2a1e00; --food: #52c98d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 56px;
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+header { padding-top: 40px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: .02em; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 30%, transparent); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 7vw, 56px); line-height: 1.02; letter-spacing: -.02em; margin: 18px 0 12px; text-wrap: balance; max-width: 16ch; }
+.lede { color: var(--muted); max-width: 52ch; margin: 0 0 20px; font-size: 17px; }
+.sample { display: inline-block; font-size: 13px; background: color-mix(in srgb, var(--gold) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line)); padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding: 12px 0 10px; border-bottom: 1px solid var(--line); margin-top: 16px; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.search { width: 100%; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; }
+.search::placeholder { color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.chip { font: inherit; font-size: 14px; font-weight: 500; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.count { color: var(--muted); font-size: 14px; margin: 18px 0 4px; }
+.day { display: flex; align-items: baseline; gap: 10px; margin: 28px 0 10px; }
+.day h2 { font-family: var(--display); font-size: 22px; margin: 0; letter-spacing: -.01em; }
+.day span { color: var(--muted); font-size: 14px; }
+.ev { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 10px; }
+.time { font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1.2; }
+.time small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ev h3 { font-family: var(--display); font-size: 19px; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; }
+.meta { color: var(--muted); font-size: 14px; margin: 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tag { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
+.tag.food { background: color-mix(in srgb, var(--food) 16%, var(--surface)); color: var(--food); }
+.tag.you { background: var(--gold); color: var(--gold-ink); }
+.save { font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.save[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.side { display: grid; gap: 8px; align-content: start; justify-items: end; }
+.rsvp { font-size: 13px; font-weight: 700; text-decoration: none; color: var(--accent-ink); background: var(--accent); border-radius: 6px; padding: 7px 12px; white-space: nowrap; }
+.rsvp:hover { filter: brightness(1.1); }
+.empty { text-align: center; padding: 48px 16px; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; margin-top: 24px; }
+
+details.add { margin-top: 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px 18px; }
+details.add summary { cursor: pointer; font-family: var(--display); font-weight: 800; font-size: 18px; padding: 14px 0; }
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 4px 0 18px; }
+form label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; }
+form .full { grid-column: 1 / -1; }
+form input, form select { font: inherit; font-weight: 400; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; min-width: 0; }
+form .check { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.btn { font: inherit; font-weight: 700; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 11px 18px; cursor: pointer; justify-self: start; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 560px) {
+  .ev { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .time { grid-column: 1 / -1; display: flex; gap: 8px; align-items: baseline; }
+  .time small { margin: 0; }
+  form { grid-template-columns: minmax(0, 1fr); }
+  .sep { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) { .chip, .save { transition: background .15s, border-color .15s; } }
+body { margin: 0; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="dot"></span>Tavly</div>
+    <h1>What's happening on campus this week</h1>
+    <p class="lede">Speaker talks, startup nights, workshops and free-food events in one list, so you can find them without scrolling feeds or waiting for a friend to forward a flyer.</p>
+    <div class="sample">Real listings from the official campus calendar (events.berkeley.edu) plus startup events from SCET, copied on Nov 11, 2026. Not affiliated with UC Berkeley.</div>
+  </header>
+
+  <div class="bar">
+    <input id="q" class="search" type="search" placeholder="Search talks, clubs, buildings" aria-label="Search events">
+    <div class="row" id="when" role="group" aria-label="When"></div>
+    <div class="row" id="cats" role="group" aria-label="Category"></div>
+  </div>
+
+  <p class="count" id="count" aria-live="polite"></p>
+  <main id="list"></main>
+
+  <details class="add">
+    <summary>Post an event</summary>
+    <p class="note" id="f-note">Hosting something? Add it here. In this prototype it saves only in your own browser; a live version would publish it for everyone.</p>
+    <form id="form">
+      <label class="full">Title<input id="f-title" required maxlength="90" placeholder="Founder fireside with a seed investor"></label>
+      <label>Date<input id="f-date" type="date" required></label>
+      <label>Start time<input id="f-time" type="time" required value="18:00"></label>
+      <label>Category<select id="f-cat"></select></label>
+      <label>Location<input id="f-loc" required maxlength="60" placeholder="Building and room"></label>
+      <label class="full">Host<input id="f-host" required maxlength="60" placeholder="Club or department"></label>
+      <label class="full">RSVP link<input id="f-rsvp" type="url" required placeholder="https://lu.ma/your-event"></label>
+      <label class="check full"><input id="f-food" type="checkbox"> Free food</label>
+      <button class="btn" type="submit">Add to the list</button>
+      <p class="note full" id="f-msg" role="status" aria-live="polite"></p>
+    </form>
+  </details>
+
+  <footer>Times are shown in your local time. Listings are a snapshot and will not refresh on their own. Each button opens the official event page, where any registration lives.</footer>
+</div>
+
+<script>
+const CATS = ["Talks", "Startups", "Careers", "Arts", "Other"];
+const WHEN = [["all", "Upcoming"], ["today", "Today"], ["week", "This week"], ["weekend", "Weekend"]];
+// Real listings from events.berkeley.edu and public Luma pages linked from scet.berkeley.edu, copied Nov 11, 2026.
+const REAL = [{"t":"Bate-Papo","c":"Other","s":1794432600,"e":1794434400,"loc":"Spanish & Portuguese Library, 5125 Dwinelle, Level E","host":"Spanish & Portuguese","url":"https://events.berkeley.edu/sp/event/331681-bate-papo","free":true,"online":false},{"t":"Ergodic Schrodinger Operators Learning Seminar: Dry Ten Martini Problem in the non-critical case","c":"Talks","s":1794442200,"e":1794445200,"loc":"736 Evans Hall","host":"Mathematics","url":"https://events.berkeley.edu/math/event/337692-ergodic-schrodinger-operators-learning-seminar-dry","free":false,"online":false},{"t":"Film Screening: Samurai Rebellion","c":"Arts","s":1794452400,"e":1794454200,"loc":"BAMPFA","host":"Berkeley Art Museum & Pacific Film Archive +2 more","url":"https://events.berkeley.edu/BAMPFA/event/331145-film-screening-samurai-rebellion","free":false,"online":false},{"t":"“A City and a Mother in Israel”(?): Abel Beth Maacah in a Cultural and Economic Context in the Early Iron Age","c":"Talks","s":1794504600,"e":1794506400,"loc":"Virtual event","host":"Archaeological Research Facility","url":"https://events.berkeley.edu/live/events/331635-a-city-and-a-mother-in-israel-abel-beth-maacah-in-a-c","free":false,"online":false},{"t":"Open Enrollment Presentations for Emeriti and Retirees Coordinated with Medicare 11/12 10am-12pm","c":"Other","s":1794506400,"e":1794513600,"loc":"Zoom","host":"Berkeley Retirement Center","url":"https://events.berkeley.edu/brc/event/333502-open-enrollment-presentations-for-emeriti-and-retiree","free":true,"online":true},{"t":"Graduate Research Seminar","c":"Talks","s":1794510000,"e":1794515400,"loc":"120 Latimer Hall","host":"College of Chemistry","url":"https://events.berkeley.edu/chem/event/327498-graduate-research-seminar","free":true,"online":false},{"t":"Post-Baccalaureate Program in Psychology Online Information Session","c":"Careers","s":1794510000,"e":1794513600,"loc":"Online via Zoom","host":"UC Berkeley Extension","url":"https://events.berkeley.edu/extension/event/333194-post-baccalaureate-program-in-psychology-online-infor","free":false,"online":true},{"t":"Certificate Program in Accounting Online Information Session","c":"Careers","s":1794510000,"e":1794513600,"loc":"Online via Zoom","host":"UC Berkeley Extension","url":"https://events.berkeley.edu/extension/event/325075-certificate-program-in-accounting-online-information-","free":false,"online":true},{"t":"Oakland’s Memory Keeper: Dorothy Lazard on Behind the Desk at the Main","c":"Other","s":1794510900,"e":1794512700,"loc":"Zoom Webinar","host":"Library","url":"https://events.berkeley.edu/Library/event/336047-oaklands-memory-keeper-dorothy-lazard-on-behind","free":false,"online":true},{"t":"Finance Lunch Seminars: Eben Lazarus","c":"Talks","s":1794511800,"e":1794515400,"loc":"C320, Cheit Hall","host":"Haas School of Business","url":"https://events.berkeley.edu/haas/event/328260-finance-lunch-seminars-tba","free":false,"online":false},{"t":"Zoe Samudzi | Autotheorizing German Genocide Denial: A Dresden Museum Case Study","c":"Talks","s":1794513600,"e":1794515400,"loc":"201 Philosophy Hall, UC Berkeley","host":"Townsend Center for the Humanities +1 more","url":"https://events.berkeley.edu/townsend/event/337536-zoe-samudzi-autotheorizing-german-genocide-denial","free":false,"online":false},{"t":"The Revolutionary Center: The Lost Genius of Liberalism","c":"Talks","s":1794515400,"e":1794517200,"loc":"223 Philosophy Hall","host":"Institute of International Studies","url":"https://events.berkeley.edu/iis/event/336642-the-revolutionary-center-the-lost-genius-of","free":false,"online":false},{"t":"OEW Seminar - Paola Moscariello (NYU)","c":"Talks","s":1794515400,"e":1794520800,"loc":"Cheit 220","host":"Haas School of Business","url":"https://events.berkeley.edu/haas/event/324957-oew-seminar-paola-moscariello-nyu","free":false,"online":false},{"t":"Marketing seminar - Ania Jaroszewicz","c":"Talks","s":1794515400,"e":1794520800,"loc":"C320","host":"Haas School of Business","url":"https://events.berkeley.edu/haas/event/333512-marketing-seminar-ania-jaroszewicz","free":false,"online":false},{"t":"Portraits of Unbelonging: Returning and Belonging","c":"Talks","s":1794515400,"e":1794517200,"loc":"Dwinelle 370","host":"Townsend Center for the Humanities","url":"https://events.berkeley.edu/townsend/event/337537-portraits-of-unbelonging-returning-and-belonging","free":true,"online":false},{"t":"MTM at UC Berkeley/UCSF Virtual Information Session","c":"Careers","s":1794517200,"e":1794520800,"loc":"virtual","host":"Master of Translational Medicine","url":"https://events.berkeley.edu/mtm/event/327766-mtm-at-uc-berkeleyucsf-virtual-information-session","free":true,"online":true},{"t":"Astronomy Colloquium - Sarah Millholland (MIT)","c":"Talks","s":1794526200,"e":1794529800,"loc":"131 Campbell Hall","host":"Astronomy Department","url":"https://events.berkeley.edu/astro/event/337410-astronomy-colloquium-sarah-millholland-mit","free":false,"online":false},{"t":"Surviving Exile: Why Activists Persist and Why it Matters Back Home","c":"Talks","s":1794526200,"e":1794531600,"loc":"223 Philosophy Hall","host":"Institute of International Studies","url":"https://events.berkeley.edu/iis/event/328725-surviving-exile-why-activists-persist-and-why-it-matt","free":true,"online":false},{"t":"PPG Foundation Lectureship with Professor Zhenan Bao","c":"Talks","s":1794528000,"e":1794531600,"loc":"Jarvis Auditorium, Grimes Engineering Center","host":"Materials Science and Engineering","url":"https://events.berkeley.edu/mse/event/333969-ppg-foundation-lectureship-with-professor-zhenan","free":true,"online":false},{"t":"Lecture | Biography of a Revolution: Rethinking Egypt’s 2011 through Feminist Genealogy","c":"Talks","s":1794528000,"e":1794529800,"loc":"Center for Middle Eastern Studies","host":"Center for Middle Eastern Studies +1 more","url":"https://events.berkeley.edu/CMES/event/327763-lecture-biography-of-a-revolution-rethinking-egypts-2","free":false,"online":false},{"t":"Neyman Statistics Seminar with Tracy Ke: Estimating Weak Spikes with Cycle Counts and Newton-Prony Identities","c":"Talks","s":1794528000,"e":1794529800,"loc":"Gateway 1420","host":"Neyman Seminar","url":"https://events.berkeley.edu/neyman-seminar/event/337254-neyman-statistics-seminar-with-tracy-ke-estimating","free":false,"online":false},{"t":"Under Pressure: Attitudes Towards China Among American Foreign Policy Professionals | Lecture by Rory Truex","c":"Talks","s":1794528000,"e":1794533400,"loc":"370 Dwinelle Hall, UC Berkeley","host":"Center for Chinese Studies","url":"https://events.berkeley.edu/ccs/event/328594-under-pressure-attitudes-towards-china-among","free":false,"online":false},{"t":"California and the Nation Vote: A Post-Mortem on the 2026 Midterm Election","c":"Other","s":1794528000,"e":1794537000,"loc":"109 Philosophy Hall, UC Berkeley, Berkeley, CA, 94720","host":"Institute of Governmental Studies","url":"https://events.berkeley.edu/igs/event/335888-california-and-the-nation-vote-a-post-mortem-on-the-2","free":true,"online":false},{"t":"Asif Saleh and Tamara Hasan Abed | Bangladesh’s Next Chapter: Back to Basics, and What Comes Next","c":"Other","s":1794531600,"e":1794535200,"loc":"Institute for South Asia Studies","host":"Institute for South Asia Studies","url":"https://events.berkeley.edu/csas/event/336231-asif-saleh-and-tamara-hasan-abed-bangladeshs-next-cha","free":true,"online":false},{"t":"Unthinking Medieval Poetry: Troubadours, Machaut","c":"Talks","s":1794531600,"e":1794533400,"loc":"Wu Performance Hall (Morrison Hall 125), UC Berkeley","host":"Medieval Studies Program +1 more","url":"https://events.berkeley.edu/medieval/event/336953-unthinking-medieval-poetry-troubadours-machaut","free":false,"online":false},{"t":"Building on Discontent: AI and the Arts, Sciences and Humanities at UC Berkeley","c":"Other","s":1794531600,"e":1794546000,"loc":"Seaborg Room, The Faculty Club","host":"Art Practice +1 more","url":"https://events.berkeley.edu/art/event/336952-building-on-discontent-ai-and-the-arts-sciences","free":true,"online":false},{"t":"Jeff Hawkins: How the Brain Understands the World: Implications for AI and robotics","c":"Talks","s":1794533400,"e":1794535200,"loc":"Simons Institute for the Theory of Computing","host":"Helen Wills Neuroscience Institute","url":"https://events.berkeley.edu/HWNI/event/334979-jeff-hawkins-how-the-brain-understands-the-world","free":false,"online":false},{"t":"Laurent Warlouzet | Liberty, Solidarity and Community: Capitalism and European Integration, 1945 to the Present","c":"Talks","s":1794600000,"e":1794601800,"loc":"201 Philosophy Hall, UC Berkeley","host":"Institute of European Studies","url":"https://events.berkeley.edu/ies/event/324945-laurent-warlouzet-liberty-solidarity-and-community-ca","free":true,"online":false},{"t":"Register for the 2026 UC Berkeley Geotechnical Engineering Research Symposium","c":"Other","s":1794603600,"e":1794605400,"loc":"Jarvis Auditorium","host":"Civil and Environmental Engineering","url":"https://events.berkeley.edu/cee/event/335650-register-for-the-2026-uc-berkeley-geotechnical-engine","free":false,"online":false},{"t":"What is a Forest Worth? The evolving value of forests from timber to multifunctional landscapes.","c":"Talks","s":1794616200,"e":1794618000,"loc":"Barbara and Gerson Bakar Gateway, Room 5340","host":"Rausser College of Natural Resources +2 more","url":"https://events.berkeley.edu/RausserCollege/event/332681-what-is-a-forest-worth-the-evolving-value-of","free":true,"online":false},{"t":"Affinity Journals (+allies) Thanksgiving Picnic","c":"Other","s":1794783600,"e":1794785400,"loc":"See event page","host":"Law","url":"https://events.berkeley.edu/law/event/337609-affinity-journals-allies-thanksgiving-picnic","free":false,"online":false},{"t":"MTM UC Berkeley/UCSF Virtual Information Session: Career Pathways","c":"Careers","s":1794855600,"e":1794859200,"loc":"virtual","host":"Master of Translational Medicine","url":"https://events.berkeley.edu/mtm/event/327767-mtm-uc-berkeleyucsf-virtual-information-session-caree","free":false,"online":true},{"t":"Luma Labs Information Session (Virtual)","c":"Careers","s":1794859200,"e":1794861000,"loc":"Zoom","host":"Department of Industrial Engineering and Operations Research","url":"https://events.berkeley.edu/IEOR/event/328653-luma-labs-information-session-virtual","free":false,"online":true},{"t":"Dissertation Talk: Structured Generative Models for Offline Model-Based Optimization","c":"Talks","s":1794861000,"e":1794862800,"loc":"The Gateway 4 - Room 4355","host":"Electrical Engineering & Computer Sciences","url":"https://events.berkeley.edu/eecs/event/337385-dissertation-talk-structured-generative-models-for","free":true,"online":true},{"t":"Dissertation Talk: Structured Generative Models for Offline Model-Based Optimization","c":"Talks","s":1794862800,"e":1794864600,"loc":"The Gateway 4 - Room 4355","host":"Electrical Engineering & Computer Sciences","url":"https://events.berkeley.edu/eecs/event/336512-dissertation-talk-structured-generative-models-for","free":true,"online":true},{"t":"Learning in Retirement: Election Post-Mortem: the 2026 Midterms","c":"Talks","s":1794866400,"e":1794871800,"loc":"Zoom","host":"Berkeley Retirement Center","url":"https://events.berkeley.edu/brc/event/327149-learning-in-retirement-election-post-mortem-the-2026-","free":true,"online":true},{"t":"Optimal transportation under McKean–Vlasov dynamics (Camilo Hernández, University of Southern California)","c":"Talks","s":1794871800,"e":1794875400,"loc":"3108 Etcheverry Hall","host":"Department of Industrial Engineering and Operations Research","url":"https://events.berkeley.edu/IEOR/event/333022-optimal-transportation-under-mckeanvlasov-dynamics-ca","free":true,"online":false},{"t":"MEng Program Info Session","c":"Careers","s":1794938400,"e":1794940200,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/334994-meng-program-info-session","free":false,"online":true},{"t":"Student Faculty Macro Lunch: “Founders and Their Heterogeneous Firms”","c":"Other","s":1794945600,"e":1794949200,"loc":"Evans 597","host":"Economics","url":"https://events.berkeley.edu/econ/event/326868-student-faculty-macro-lunch-founders-and-their-hetero","free":false,"online":false},{"t":"Predicted: How AI is restructuring social life","c":"Talks","s":1794960000,"e":1794965400,"loc":"820 Social Sciences Building","host":"Berkeley Economy and Society Initiative","url":"https://events.berkeley.edu/besi/event/337711-predicted-how-ai-is-restructuring-social-life","free":true,"online":false},{"t":"Meta Network Infra: UC Berkeley Lightning Hackathon","c":"Startups","s":1794960000,"e":1794961800,"loc":"Detailed agenda and location will be shared directly with selected applicants","host":"Electrical Engineering & Computer Sciences","url":"https://events.berkeley.edu/eecs/event/338014-meta-network-infra-uc-berkeley-lightning-hackathon","free":false,"online":false},{"t":"Aditya Balasubramanian | Crossings Interrupted or Invisibilized? Rethinking Migration Across the Bay of Bengal","c":"Other","s":1794963600,"e":1794969000,"loc":"10 Stephens Hall","host":"Institute for South Asia Studies","url":"https://events.berkeley.edu/csas/event/326635-aditya-balasubramanian-crossings-interrupted-or-invis","free":true,"online":true},{"t":"Dawn Danby & David McConville // Planetary Repair, Shared Futures","c":"Talks","s":1794965400,"e":1794967200,"loc":"Jacobs Institute for Design Innovation","host":"Jacobs Institute for Design Innovation +1 more","url":"https://events.berkeley.edu/Jacobs/event/328961-dawn-danby-david-mcconville","free":true,"online":false},{"t":"MEng Application Overview Session","c":"Careers","s":1795024800,"e":1795026600,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/334997-meng-application-overview-session","free":false,"online":true},{"t":"Haas Scholars Program Info Session","c":"Careers","s":1795028400,"e":1795032000,"loc":"Zoom","host":"College of Letters & Science","url":"https://events.berkeley.edu/ls/event/336479-haas-scholars-program-info-session","free":false,"online":true},{"t":"TIE Seminar Presentation (Yueran Ma)","c":"Talks","s":1795032000,"e":1795039200,"loc":"C325 Cheit Hall","host":"Haas School of Business","url":"https://events.berkeley.edu/haas/event/327198-tie-seminar-presentation-yueran-ma","free":false,"online":false},{"t":"Negligent by Design: Anti-Blackness in American Medicine and How to Address It","c":"Other","s":1795032000,"e":1795033800,"loc":"Zoom","host":"UC Berkeley Public Health","url":"https://events.berkeley.edu/bph/event/335835-negligent-by-design-anti-blackness-in-american","free":false,"online":true},{"t":"François Chollet: Science of Intelligence Seminar","c":"Talks","s":1795032000,"e":1795033800,"loc":"101 Weill Hall","host":"Helen Wills Neuroscience Institute","url":"https://events.berkeley.edu/HWNI/event/338003-francois-chollet-science-of-intelligence-seminar","free":false,"online":true},{"t":"CTML Seminar Series: Tianyue Zhou (CTML GSR)","c":"Talks","s":1795032000,"e":1795035600,"loc":"2121 Berkeley Way","host":"UC Berkeley Public Health","url":"https://events.berkeley.edu/bph/event/336376-ctml-seminar-series-tianyue-zhou-ctml-gsr","free":true,"online":false},{"t":"Seminar 291, Department Seminar joint with Labor and Public Finance: Xavier Jaravel (LSE) - Distributional Consumer Price Indices","c":"Talks","s":1795032000,"e":1795036500,"loc":"Evans Hall 648","host":"Economics","url":"https://events.berkeley.edu/econ/event/327633-seminar-291-department-seminar-joint-with-labor-and-p","free":false,"online":false},{"t":"Why Du Bois? Why Now? Why it Matters? Du Bois in South Africa and the Multiple Consciousnesses","c":"Talks","s":1795032000,"e":1795037400,"loc":"340 Stephens Hall","host":"Center for African Studies","url":"https://events.berkeley.edu/live/events/337871-why-du-bois-why-now-why-it-matters-du-bois-in","free":true,"online":false},{"t":"MS in Chemical Engineering - Product Development Program (PDP) Info Session","c":"Careers","s":1795042800,"e":1795044600,"loc":"Zoom","host":"Campuswide","url":"https://events.berkeley.edu/event/332276-ms-in-chemical-engineering-product-development","free":false,"online":true},{"t":"Neyman Statistics Seminar with Weijie Su: Alignment in Large Language Models: Statistical and Game-Theoretic Perspectives","c":"Talks","s":1795046400,"e":1795048200,"loc":"Tan Hall 180","host":"Neyman Seminar","url":"https://events.berkeley.edu/live/events/337783-neyman-statistics-seminar-with-weijie-su-alignment","free":false,"online":false},{"t":"MEng Application Writing Workshop","c":"Careers","s":1795111200,"e":1795113000,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/334998-meng-application-writing-workshop","free":false,"online":true},{"t":"Putting People Before Profits: Transforming US Foreign Policy","c":"Talks","s":1795120200,"e":1795125600,"loc":"223 Philosophy Hall","host":"Institute of International Studies","url":"https://events.berkeley.edu/iis/event/337875-putting-people-before-profits-transforming-us","free":false,"online":false},{"t":"Fireside Chat with Dr. Lindsay Owens on Her New Book, Gouged: The End of a Fair Price — And What That Means for Your Wallet","c":"Talks","s":1795122000,"e":1795123800,"loc":"See event page","host":"Law","url":"https://events.berkeley.edu/law/event/337955-fireside-chat-with-dr-lindsay-owens-on-her-new","free":false,"online":false},{"t":"OSPO Monthly Meetup: Open science for the environment","c":"Other","s":1795129200,"e":1795136400,"loc":"Gateway Building, Social Kitchen, Room 1420","host":"Berkeley Institute for Data Science (BIDS)","url":"https://luma.com/7512q9mo","free":true,"online":false},{"t":"Accelerating Research and Engineering with AI","c":"Talks","s":1795134600,"e":1795136400,"loc":"Melvin Calvin Laboratory, UC Berkeley","host":"Simons Institute for the Theory of Computing","url":"https://events.berkeley.edu/Simons/event/337964-accelerating-research-and-engineering-with-ai","free":true,"online":false},{"t":"Life and Death in the New El Salvador","c":"Talks","s":1795134600,"e":1795136400,"loc":"CLACS Conference Room (2334 Bowditch St, Berkeley, CA 94720)","host":"Comparative Literature","url":"https://events.berkeley.edu/complit/event/332349-life-and-death-in-the-new-el-salvador","free":false,"online":false},{"t":"Esha Niyogi De | Women’s Transborder Cinema: Authorship, Stardom, and Filmic Labor in South Asia","c":"Other","s":1795136400,"e":1795141800,"loc":"Institute for South Asia Studies","host":"Institute for South Asia Studies","url":"https://events.berkeley.edu/csas/event/325691-esha-niyogi-de-womens-transborder-cinema-authorship-s","free":true,"online":true},{"t":"BLC Showcase | Language Teaching Excellence at UC Berkeley: A Showcase & Celebration | UCB Language Faculty","c":"Other","s":1795215600,"e":1795222800,"loc":"B-4 Dwinelle Hall","host":"Berkeley Language Center","url":"https://events.berkeley.edu/blc/event/327150-blc-showcase-language-teaching-excellence-at-uc","free":true,"online":true},{"t":"MTM at ABRCMS","c":"Other","s":1795248000,"e":1795249800,"loc":"Seattle Convention Center | Summit Building","host":"Master of Translational Medicine","url":"https://events.berkeley.edu/mtm/event/332585-mtm-at-abrcms","free":false,"online":false},{"t":"Haas Scholars Program Info Session","c":"Careers","s":1795550400,"e":1795554000,"loc":"Dwinelle 3401","host":"College of Letters & Science","url":"https://events.berkeley.edu/ls/event/336480-haas-scholars-program-info-session","free":false,"online":false},{"t":"Physical Chemistry Seminar","c":"Talks","s":1795564800,"e":1795566600,"loc":"120 Latimer Hall","host":"College of Chemistry","url":"https://events.berkeley.edu/chem/event/317651-physical-chemistry-seminar","free":true,"online":false},{"t":"Organic Chemistry Seminar","c":"Talks","s":1796151600,"e":1796153400,"loc":"120 Latimer Hall","host":"College of Chemistry","url":"https://events.berkeley.edu/chem/event/317647-organic-chemistry-seminar","free":true,"online":false},{"t":"Nursing Preparatory Program Online Information Session","c":"Careers","s":1796155200,"e":1796158800,"loc":"Online via Zoom","host":"UC Berkeley Extension","url":"https://events.berkeley.edu/extension/event/331780-nursing-preparatory-program-online-information-sessio","free":false,"online":true},{"t":"Newton Lecture: Freada Kapor Klein & Mitch Kapor at UC Berkeley (Equity in Tech)","c":"Startups","s":1796173200,"e":1796176800,"loc":"See Luma page","host":"Sutardja Center (SCET)","url":"https://luma.com/d3jby0di","free":false,"online":false},{"t":"Haas Scholars Program Info Session","c":"Careers","s":1796245200,"e":1796248800,"loc":"Zoom","host":"College of Letters & Science","url":"https://events.berkeley.edu/ls/event/336483-haas-scholars-program-info-session","free":false,"online":true},{"t":"Talking SBIR/STTR Grant Funding: Small Business Research Subcontracts","c":"Startups","s":1796328000,"e":1796331600,"loc":"Virtual","host":"Intellectual Property and Industry Research Alliances (IPIRA)","url":"https://events.berkeley.edu/ipira/event/325248-talking-sbirsttr-grant-funding-small-business-researc","free":true,"online":true},{"t":"MTM UC Berkeley/UCSF Virtual Information Session: Putting Together a Competitive Application","c":"Careers","s":1796335200,"e":1796338800,"loc":"virtual","host":"Master of Translational Medicine","url":"https://events.berkeley.edu/mtm/event/327761-mtm-uc-berkeleyucsf-virtual-information-session-putti","free":false,"online":true},{"t":"Creativity and Playwriting: A Conversation with Stan Lai","c":"Talks","s":1796342400,"e":1796344200,"loc":"Zellerbach Hall, Room 7","host":"Theater, Dance, and Performance Studies","url":"https://events.berkeley.edu/TDPS/event/337267-creativity-and-playwriting-a-conversation-with","free":false,"online":false},{"t":"Reactionary Politics in South Korea: Historical Legacies, Far-Right Intellectuals, and Political Mobilization","c":"Talks","s":1796346000,"e":1796347800,"loc":"Institute of East Asian Studies, Conference Room, 2111 Bancroft Way, 5th Floor, Berkeley, CA 94720","host":"Center for Korean Studies","url":"https://events.berkeley.edu/cks/event/322886-reactionary-politics-in-south-korea-historical","free":false,"online":false},{"t":"California Live! Our Strange Land: On Stolen Pride and the Road Ahead","c":"Talks","s":1796351400,"e":1796358600,"loc":"Berkeley Art Museum and Pacific Film Archive","host":"Cal Alumni Association","url":"https://events.berkeley.edu/CAA/event/337433-california-live-our-strange-land-on-stolen-pride","free":false,"online":false},{"t":"BETR/EECS Solid State Technologies Seminar: Prof. Valla Fatemi, Cornell University | Toward Robust Superconducting Quantum Computation: From Nanofabrication to Logical Control","c":"Talks","s":1796414400,"e":1796416200,"loc":"Grimes Engineering Center, Room 202","host":"Electrical Engineering & Computer Sciences","url":"https://events.berkeley.edu/eecs/event/337191-betreecs-solid-state-technologies-seminar-prof","free":true,"online":false},{"t":"BLC Talk | Creating the Conditions for Languages to Thrive: Advocacy, Leadership, and Institutional Change | Deb Reisinger","c":"Talks","s":1796425200,"e":1796432400,"loc":"B-4 Dwinelle","host":"Berkeley Language Center","url":"https://events.berkeley.edu/blc/event/325231-blc-talk-creating-the-conditions-for-languages-to-thr","free":true,"online":true},{"t":"MTM 2026 Capstone Showcase","c":"Other","s":1796774400,"e":1796781600,"loc":"Stanley Hall, University Drive, Berkeley, CA","host":"Master of Translational Medicine","url":"https://events.berkeley.edu/mtm/event/336267-mtm-2026-capstone-showcase","free":false,"online":false},{"t":"MEng Program Info Session","c":"Careers","s":1796774400,"e":1796776200,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/335001-meng-program-info-session","free":false,"online":true},{"t":"MS in Chemical Engineering - Product Development Program (PDP) Info Session","c":"Careers","s":1796857200,"e":1796859000,"loc":"Zoom","host":"Campuswide","url":"https://events.berkeley.edu/event/332275-ms-in-chemical-engineering-product-development","free":false,"online":true},{"t":"MEng Application Overview Session","c":"Careers","s":1796857200,"e":1796859000,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/335002-meng-application-overview-session","free":false,"online":true},{"t":"Danette Daniels: Towards new cancer medicines with degraders of chromatin regulatory proteins","c":"Talks","s":1796929200,"e":1796932800,"loc":"125 Li Ka Shing Center","host":"Molecular and Cell Biology","url":"https://events.berkeley.edu/mcb/event/321983-mtx-seminar","free":false,"online":false},{"t":"MEng Application Writing Workshop","c":"Careers","s":1796940000,"e":1796941800,"loc":"Online","host":"Fung Institute for Engineering Leadership","url":"https://events.berkeley.edu/fung/event/335003-meng-application-writing-workshop","free":false,"online":true},{"t":"UC Berkeley SCET Collider Cup XIX + SCET Startup Expo","c":"Startups","s":1797022800,"e":1797033600,"loc":"Grimes Engineering Center","host":"Sutardja Center (SCET)","url":"https://luma.com/up9km2vj","free":false,"online":false},{"t":"Tuning In Together: Using Music to Navigate Caregiving","c":"Other","s":1797364800,"e":1797370200,"loc":"Virtual Classroom","host":"Tang Center (University Health Services)","url":"https://events.berkeley.edu/uhs/event/324802-tuning-in-together-using-music-to-navigate-caregiving","free":true,"online":true},{"t":"Nursing Preparatory Program Online Information Session","c":"Careers","s":1799784000,"e":1799787600,"loc":"Online via Zoom","host":"UC Berkeley Extension","url":"https://events.berkeley.edu/extension/event/334433-nursing-preparatory-program-online-information-sessio","free":false,"online":true},{"t":"Lecture | The Invention of the Fertile Crescent: Historical Lessons from American Orientalism","c":"Talks","s":1801080000,"e":1801081800,"loc":"Center for Middle Eastern Studies","host":"Center for Middle Eastern Studies","url":"https://events.berkeley.edu/CMES/event/329997-lecture-the-invention-of-the-fertile-crescent","free":false,"online":false},{"t":"Danielle Roper | Hemispheric Blackface: A Reflection on Racial Impersonation","c":"Talks","s":1801180800,"e":1801186200,"loc":"223 Philosophy Hall, UC Berkeley","host":"Center for Latin American and Caribbean Studies (CLACS)","url":"https://events.berkeley.edu/clacs/event/337371-danielle-roper-hemispheric-blackface-a-reflection","free":true,"online":false}];
+
+const $ = (s) => document.querySelector(s);
+const pad = (n) => String(n).padStart(2, "0");
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const today = startOfDay(new Date());
+const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fmtTime = (d) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(":00", "");
+
+function store(key, val) {
+  try { if (val === undefined) return JSON.parse(localStorage.getItem(key) || "null"); localStorage.setItem(key, JSON.stringify(val)); } catch (e) { return null; }
+}
+
+const state = { q: "", when: "all", cat: "All", savedOnly: false, saved: new Set(store("tb-saved") || []), mine: store("tb-mine") || [] , shared: [] };
+let dbRef = null, myId = null, canMod = false;
+const okUrl = (u) => /^https?:\/\/\S+$/i.test(u || "");
+
+function build() {
+  const out = REAL.map((s, i) => ({
+    id: "r" + s.s + "-" + i, rsvp: s.url, title: s.t, cat: s.c, loc: s.loc, host: s.host, food: s.free, online: s.online,
+    start: new Date(s.s * 1000), end: new Date(s.e * 1000), mine: false
+  }));
+  const add = (m, extra) => {
+    const start = new Date(m.start);
+    if (!m.title || !okUrl(m.rsvp) || isNaN(start)) return;
+    out.push({
+      id: extra.id, docId: extra.docId, by: m.by, rsvp: m.rsvp, title: String(m.title).slice(0, 120),
+      cat: CATS.includes(m.cat) ? m.cat : "Other", loc: String(m.loc || "").slice(0, 80), host: String(m.host || "").slice(0, 80),
+      food: !!m.food, start, end: new Date(start.getTime() + 2 * 3600e3), posted: true, mine: extra.mine
+    });
+  };
+  if (dbRef) state.shared.forEach((m) => add(m, { id: "d" + m.docId, docId: m.docId, mine: !!myId && m.by === myId }));
+  else state.mine.forEach((m, i) => add(m, { id: "m" + i, mine: true }));
+  return out.sort((a, b) => a.start - b.start);
+}
+
+function inWhen(ev) {
+  const day = startOfDay(ev.start), diff = Math.round((day - today) / 864e5);
+  if (state.when === "today") return diff === 0;
+  if (state.when === "week") return diff >= 0 && diff < 7;
+  if (state.when === "weekend") return [0, 6].includes(ev.start.getDay()) && diff < 14;
+  return true;
+}
+
+function dayLabel(d) {
+  const diff = Math.round((startOfDay(d) - today) / 864e5);
+  const date = d.toLocaleDateString([], { month: "short", day: "numeric" });
+  if (diff === 0) return ["Today", date];
+  if (diff === 1) return ["Tomorrow", date];
+  return [d.toLocaleDateString([], { weekday: "long" }), date];
+}
+
+function chips() {
+  const mk = (host, items, isActive, onClick) => {
+    host.innerHTML = "";
+    items.forEach(([val, label]) => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.type = "button"; b.textContent = label;
+      b.setAttribute("aria-pressed", String(isActive(val)));
+      b.onclick = () => { onClick(val); chips(); render(); };
+      host.appendChild(b);
+    });
+  };
+  mk($("#when"), WHEN, (v) => state.when === v, (v) => (state.when = v));
+  mk($("#cats"), [["All", "All"], ...CATS.map((c) => [c, c]), ["Saved", "Saved"]],
+    (v) => (v === "Saved" ? state.savedOnly : !state.savedOnly && state.cat === v),
+    (v) => { if (v === "Saved") { state.savedOnly = !state.savedOnly; } else { state.savedOnly = false; state.cat = v; } });
+}
+
+function render() {
+  const now = new Date();
+  const q = state.q.trim().toLowerCase();
+  const list = build().filter((e) =>
+    e.end > now && inWhen(e) &&
+    (state.savedOnly ? state.saved.has(e.id) : state.cat === "All" || e.cat === state.cat) &&
+    (!q || [e.title, e.host, e.loc, e.cat].join(" ").toLowerCase().includes(q))
+  );
+  $("#count").textContent = list.length ? `${list.length} event${list.length === 1 ? "" : "s"}` : "";
+  const root = $("#list");
+  root.innerHTML = "";
+  if (!list.length) {
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = state.savedOnly ? "Nothing saved yet. Tap Save on an event to keep it here." : "No events match. Try a wider time range or clear the search.";
+    root.appendChild(d);
+    return;
+  }
+  let lastKey = "";
+  list.forEach((e) => {
+    const k = keyOf(e.start);
+    if (k !== lastKey) {
+      lastKey = k;
+      const [a, b] = dayLabel(e.start);
+      const h = document.createElement("div");
+      h.className = "day";
+      h.innerHTML = `<h2></h2><span></span>`;
+      h.querySelector("h2").textContent = a; h.querySelector("span").textContent = b;
+      root.appendChild(h);
+    }
+    const art = document.createElement("article");
+    art.className = "ev";
+    const mins = Math.round((e.end - e.start) / 6e4);
+    art.innerHTML = `<div class="time"></div><div><h3></h3><p class="meta"></p><div class="tags"></div></div><div class="side"><a class="rsvp" target="_blank" rel="noopener noreferrer">Details &amp; RSVP</a><button class="save" type="button"></button></div>`;
+    art.querySelector(".time").innerHTML = `${fmtTime(e.start)}<small>${mins >= 60 ? (mins / 60).toString().replace(/\.0$/, "") + " hr" : mins + " min"}</small>`;
+    art.querySelector("h3").textContent = e.title;
+    art.querySelector(".meta").textContent = `${e.loc} · ${e.host}`;
+    const tags = art.querySelector(".tags");
+    const addTag = (txt, cls) => { const s = document.createElement("span"); s.className = "tag " + (cls || ""); s.textContent = txt; tags.appendChild(s); };
+    addTag(e.cat);
+    if (e.food) addTag("Free", "food");
+    if (e.online) addTag("Online");
+    if (e.posted) addTag(e.mine ? "Posted by you" : "Student-posted", "you");
+    const rv = art.querySelector(".rsvp");
+    rv.href = okUrl(e.rsvp) ? e.rsvp : "#";
+    rv.setAttribute("aria-label", "Details and RSVP for " + e.title);
+    const sv = art.querySelector(".save");
+    const on = state.saved.has(e.id);
+    sv.textContent = on ? "Saved" : "Save";
+    sv.setAttribute("aria-pressed", String(on));
+    sv.setAttribute("aria-label", (on ? "Unsave " : "Save ") + e.title);
+    if (e.docId && dbRef && ((myId && e.by === myId) || canMod)) {
+      const rm = document.createElement("button");
+      rm.className = "save"; rm.type = "button"; rm.textContent = "Remove";
+      rm.setAttribute("aria-label", "Remove " + e.title);
+      rm.onclick = async () => { try { await dbRef.collection("events").doc(e.docId).delete(); } catch (err) { rm.textContent = "Could not remove"; } };
+      sv.parentNode.appendChild(rm);
+    }
+    sv.onclick = () => { on ? state.saved.delete(e.id) : state.saved.add(e.id); store("tb-saved", [...state.saved]); render(); };
+    root.appendChild(art);
+  });
+}
+
+$("#q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+
+const sel = $("#f-cat");
+CATS.forEach((c) => { const o = document.createElement("option"); o.value = o.textContent = c; sel.appendChild(o); });
+$("#f-date").value = keyOf(today);
+$("#f-date").min = keyOf(today);
+$("#form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const msg = $("#f-msg");
+  msg.textContent = "";
+  const rsvp = $("#f-rsvp").value.trim();
+  if (!okUrl(rsvp)) { msg.textContent = "The RSVP link must start with http:// or https://"; return; }
+  const [y, m, d] = $("#f-date").value.split("-").map(Number);
+  const [hh, mm] = $("#f-time").value.split(":").map(Number);
+  const rec = {
+    title: $("#f-title").value.trim(), cat: sel.value, loc: $("#f-loc").value.trim(), host: $("#f-host").value.trim(),
+    rsvp, food: $("#f-food").checked, start: new Date(y, m - 1, d, hh, mm).toISOString()
+  };
+  const btn = ev.target.querySelector("button[type=submit]");
+  btn.disabled = true;
+  try {
+    if (dbRef) await dbRef.collection("events").add({ ...rec, by: myId || null, addedAt: new Date().toISOString() });
+    else { state.mine.push(rec); store("tb-mine", state.mine); }
+  } catch (err) {
+    btn.disabled = false;
+    msg.textContent = err && err.code === "invalid_argument"
+      ? "You can view events but not post them. Ask the page owner for contributor access."
+      : "Could not post right now. Try again in a moment.";
+    return;
+  }
+  btn.disabled = false;
+  ev.target.reset();
+  $("#f-date").value = keyOf(today); $("#f-time").value = "18:00";
+  state.when = "all"; state.cat = "All"; state.savedOnly = false; state.q = ""; $("#q").value = "";
+  chips(); render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+chips();
+render();
+
+// Shared board: when the db capability is available, posted events are stored for everyone.
+(async () => {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const db = await window.claude.use("db");
+    if (!db) return;
+    const user = await window.claude.use("user");
+    try { myId = user && user.id ? await user.id() : null; canMod = !!(user && user.canEdit && user.canEdit()); } catch (e) {}
+    dbRef = db;
+    $("#f-note").textContent = "Posted events are visible to everyone who opens this page. Only you or the page owner can remove them.";
+    db.collection("events").onSnapshot(
+      (snap) => { state.shared = snap.docs.map((d) => ({ docId: d.id, ...d.data() })); render(); },
+      () => { dbRef = null; render(); }
+    );
+    render();
+  } catch (e) { /* stay in local-only mode */ }
+})();
+</script>
+</body>
+</html>
